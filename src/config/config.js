@@ -1,5 +1,5 @@
 import React from "react";
-import courses from "../content-sources/oatutor/coursePlans.json";
+import { coursePlans as courses } from "../content/contentStore";
 import { calculateSemester } from "../util/calculateSemester.js";
 
 import { SITE_NAME } from "@common/global-config";
@@ -39,7 +39,7 @@ const SHOW_COPYRIGHT = false;
  * feedback, user interactions, and site logs.
  * @type {boolean}
  */
-const ENABLE_FIREBASE = true;
+const ENABLE_FIREBASE = false;
 
 /**
  * If ENABLE_FIREBASE, indicates whether the site should use Firebase to store, process, and analyze general user

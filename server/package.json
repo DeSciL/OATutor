@@ -1,0 +1,23 @@
+{
+  "name": "oatutor-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Serves the OATutor build and imports content sources at runtime",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "compression": "^1.8.2",
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "yauzl": "^3.2.0"
+  },
+  "devDependencies": {
+    "yazl": "^3.3.1"
+  }
+}
