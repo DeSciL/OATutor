@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import courses from "../content-sources/oatutor/coursePlans.json";
+import { coursePlans as courses } from "../content/contentStore";
 import Grid from "@material-ui/core/Grid";
 
 import GeometryIcon from "../assets/TOC-icon.svg";

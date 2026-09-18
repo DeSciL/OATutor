@@ -299,7 +299,7 @@ DO_FOCUS_TRACKING = false;
 - Problems can contain _steps_ which are contained in their own sub-folder.
 - Steps can contain _hints_ which are stored as _pathways_ in the `tutoring` sub-folder.
 - All problems are pre-processed before being ingested by the frontend platform. 
-  All problems are accumulated in the `generated/processed-content-pool/[source_name].json` file prior to each run or build.
+  All problems are accumulated in the `public/content-pool/[source_name].json` file prior to each run or build.
 
 #### ./bkt-params
 - `bktParams.js`: Contains the mastery, transit, slip, and guess probabilities for each skill. Used by the BKT model.

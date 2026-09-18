@@ -31,7 +31,6 @@ import { getStudentDisplayName } from "../util/getStudentDisplayName";
 import BrandLogoNav from "@components/BrandLogoNav";
 import { cleanArray } from "../util/cleanObject";
 import ErrorBoundary from "@components/ErrorBoundary";
-import { CONTENT_SOURCE } from "@common/global-config";
 import withTranslation from "../util/withTranslation";
 
 import { LocalizationConsumer } from "../util/LocalizationContext.js";
@@ -65,7 +64,7 @@ import withWidth from "@material-ui/core/withWidth";
 import { ProgressTooltip, InfoTooltip } from "@components/Tooltip";
 import { isMobileWidth } from "../util/responsive";
 
-let problemPool = require(`@generated/processed-content-pool/${CONTENT_SOURCE}.json`);
+import { problemPool } from "../content/contentStore";
 
 let seed = Date.now().toString();
 console.log("Generated seed");

@@ -30,7 +30,6 @@ service-account-credentials.json
 sheets-service-account.json
 oatutor-firebase-adminsdk.json
 aws/aiAgentGeneration/.env
-src/config/firebaseConfig.js
 
 # Misc.
 **/.vscode
@@ -44,6 +43,7 @@ export.py
 /generated
 
 public/static/images/figures/oatutor/
+public/content-pool/
 
 # Course-document compiler caches / large BDA outputs (keep .gitkeep + fixtures)
 aws/aiAgentGeneration/documents/bda-raw/**
@@ -59,3 +59,6 @@ aws/aiAgentGeneration/documents/assets/tables/**
 # Keep all raw PDFs / nested course folders out of git (local drop-in only)
 aws/aiAgentGeneration/documents/raw/**
 !aws/aiAgentGeneration/documents/raw/.gitkeep
+
+# Imported content when the server runs locally
+/data
