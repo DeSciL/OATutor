@@ -3,10 +3,31 @@ const os = require("os")
 const path = require("path")
 const yazl = require("yazl")
 const { createApp } = require("../app")
+const { authSettings } = require("../auth/config")
 const { toSets } = require("../importer/builtin")
 const { ContentStore } = require("../importer/store")
 
 const TOKEN = "test-token"
+
+const AUTH_ENV = {
+    SESSION_SECRET: "test-secret",
+    OIDC_ISSUER: "http://idp.test/realms/test",
+    OIDC_CLIENT_ID: "oatutor",
+    OIDC_CLIENT_SECRET: "test",
+    // Plain http, or the session cookie would be Secure and never come back to the test server.
+    PUBLIC_BASE_URL: "http://tutor.test",
+}
+
+/** Stands in for Keycloak: whoever calls the callback says who they are in its query. */
+const stubOidc = {
+    begin: async () => ({ url: "http://idp.test/authorize", pending: { state: "s", verifier: "v" } }),
+    finish: async callbackPath => {
+        const query = new URL(callbackPath, "http://tutor.test").searchParams
+        if (!query.get("sub")) throw new Error("the provider refused")
+        return { sub: query.get("sub"), name: "Test User", roles: query.get("roles").split(",").filter(Boolean) }
+    },
+    endSessionUrl: () => "http://idp.test/logout",
+}
 
 const BUILTIN = {
     problemIds: ["a005bd5real1"],
@@ -61,7 +82,7 @@ function zipOf(files) {
 }
 
 /** A running server over a fresh data directory. */
-async function startServer({ limits, ...options } = {}) {
+async function startServer({ limits, authMode = "oidc", ...options } = {}) {
     // A default parameter would also replace an explicit undefined, which is the case under test.
     const importToken = "importToken" in options ? options.importToken : TOKEN
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "oatutor-server-"))
@@ -78,14 +99,38 @@ async function startServer({ limits, ...options } = {}) {
     const dataDir = path.join(root, "data")
     const store = new ContentStore({ dataDir, builtin: toSets(BUILTIN), limits })
     await store.init()
-    const server = createApp({ buildDir, store, importToken, publicBaseUrl: "https://tutor.example" }).listen(0)
+    const events = []
+    const server = createApp({
+        buildDir,
+        store,
+        importToken,
+        publicBaseUrl: "https://tutor.example",
+        auth: authSettings({ ...AUTH_ENV, AUTH_MODE: authMode }),
+        oidc: stubOidc,
+        events: { insert: async event => events.push(event) },
+    }).listen(0)
     await new Promise(resolve => server.once("listening", resolve))
 
     const base = `http://127.0.0.1:${server.address().port}`
     const auth = { Authorization: `Bearer ${TOKEN}` }
+    const cookies = response => ({ Cookie: response.headers.getSetCookie().map(cookie => cookie.split(";")[0]).join("; ") })
+    /** Goes through sign-in and returns where it ended plus the headers of that session. */
+    const signIn = async ({ roles = [], next } = {}) => {
+        const query = next === undefined ? "" : `?next=${encodeURIComponent(next)}`
+        const started = await fetch(`${base}/api/auth/login${query}`, { redirect: "manual" })
+        const callback = `${base}/api/auth/callback?sub=user-${roles.join("-") || "student"}&roles=${roles.join(",")}`
+        const finished = await fetch(callback, { redirect: "manual", headers: cookies(started) })
+        return { location: finished.headers.get("location"), headers: cookies(finished) }
+    }
+    // With sign-in off there is no session to carry.
+    const student = authMode === "off" ? {} : (await signIn()).headers
+
     return {
         base,
         dataDir,
+        events,
+        student,
+        signIn,
         close: () => new Promise(resolve => server.close(resolve)),
         upload: async (zip, headers = auth) => {
             const form = new FormData()
@@ -93,8 +138,8 @@ async function startServer({ limits, ...options } = {}) {
             const response = await fetch(`${base}/api/imports`, { method: "POST", body: form, headers })
             return { status: response.status, body: await response.json() }
         },
-        overlay: async () => (await fetch(`${base}/api/content/overlay`)).json(),
-        remove: key => fetch(`${base}/api/imports/${key}`, { method: "DELETE", headers: auth }),
+        overlay: async () => (await fetch(`${base}/api/content/overlay`, { headers: student })).json(),
+        remove: (key, headers = auth) => fetch(`${base}/api/imports/${key}`, { method: "DELETE", headers }),
         list: async () => (await fetch(`${base}/api/imports`, { headers: auth })).json(),
     }
 }

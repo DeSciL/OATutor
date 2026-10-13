@@ -13,8 +13,12 @@
   },
   "dependencies": {
     "compression": "^1.8.2",
+    "cookie-session": "^2.1.0",
     "express": "^5.1.0",
+    "jose": "^6.0.0",
     "multer": "^2.0.2",
+    "openid-client": "^6.1.0",
+    "pg": "^8.13.0",
     "yauzl": "^3.2.0"
   },
   "devDependencies": {

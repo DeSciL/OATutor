@@ -2,6 +2,7 @@ const crypto = require("crypto")
 const fs = require("fs")
 const express = require("express")
 const multer = require("multer")
+const { requireUser } = require("../auth/session")
 const { ImportError } = require("./errors")
 
 function sameToken(given, expected) {
@@ -13,18 +14,28 @@ function sameToken(given, expected) {
 function importRoutes({ store, importToken, publicBaseUrl = "" }) {
     const router = express.Router()
 
-    const requireToken = (req, res, next) => {
-        if (!importToken) {
-            return res.status(503).json({ detail: "Importing is switched off because IMPORT_TOKEN is not set." })
-        }
+    // TutorCreator sends the token; someone on the import page has a session instead.
+    const allow = (roles, refusal) => (req, res, next) => {
         const given = (req.get("authorization") || "").replace(/^Bearer\s+/i, "")
-        if (!given || !sameToken(given, importToken)) {
-            return res.status(401).json({ detail: "The import token is missing or wrong." })
+        if (given) {
+            if (!importToken) {
+                return res.status(503).json({ detail: "Importing by token is switched off because IMPORT_TOKEN is not set." })
+            }
+            if (!sameToken(given, importToken)) return res.status(401).json({ detail: "The import token is wrong." })
+            return next()
         }
+        const role = req.session?.user?.role
+        if (!role || role === "anonymous") {
+            return res.status(401).json({ detail: "The import token is missing." })
+        }
+        if (!roles.includes(role)) return res.status(403).json({ detail: refusal })
         next()
     }
+    const mayImport = allow(["teacher", "admin"], "Only teachers may import content.")
+    // Which teacher a source belongs to is known to TutorCreator, not here.
+    const mayRemove = allow(["admin"], "Only admins may remove a source here. Unpublish it in TutorCreator instead.")
 
-    // Checked before multer, so nobody without the token gets to write to disk.
+    // Checked before multer, so nobody without permission gets to write to disk.
     const upload = multer({
         dest: store.tmpDir,
         limits: { fileSize: store.limits.maxUploadBytes, files: 1, fields: 0 },
@@ -32,18 +43,19 @@ function importRoutes({ store, importToken, publicBaseUrl = "" }) {
 
     const lessonUrl = id => `${publicBaseUrl.replace(/\/$/, "")}/#/lessons/${id}`
 
-    router.get("/content/overlay", (req, res) => {
+    // The overlay carries the answers, so it is for signed-in users only.
+    router.get("/content/overlay", requireUser, (req, res) => {
         const { body, etag } = store.overlay()
         res.set({ ETag: etag, "Cache-Control": "no-cache" })
         if (req.get("if-none-match") === etag) return res.status(304).end()
         res.type("application/json").send(body)
     })
 
-    router.get("/imports", requireToken, async (req, res) => {
+    router.get("/imports", mayImport, async (req, res) => {
         res.json(await store.list())
     })
 
-    router.post("/imports", requireToken, upload, async (req, res) => {
+    router.post("/imports", mayImport, upload, async (req, res) => {
         if (!req.file) throw new ImportError(400, 'Send the zip as a multipart form field named "file".')
         try {
             const result = await store.importZip(req.file.path)
@@ -53,7 +65,7 @@ function importRoutes({ store, importToken, publicBaseUrl = "" }) {
         }
     })
 
-    router.delete("/imports/:sourceKey", requireToken, async (req, res) => {
+    router.delete("/imports/:sourceKey", mayRemove, async (req, res) => {
         await store.remove(req.params.sourceKey)
         res.status(204).end()
     })

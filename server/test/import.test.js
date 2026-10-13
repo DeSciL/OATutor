@@ -29,7 +29,7 @@ test("an imported lesson appears in the overlay", async () => {
 
 test("importing again replaces the earlier import", async () => {
     await server.upload(await zipOf(contentSource({ problems: ["p1", "p2"], figure: true })))
-    assert.equal((await fetch(`${server.base}/static/images/figures/oatutor/p1/graph.png`)).status, 200)
+    assert.equal((await fetch(`${server.base}/static/images/figures/oatutor/p1/graph.png`, { headers: server.student })).status, 200)
 
     const { status, body } = await server.upload(await zipOf(contentSource({ problems: ["p2"] })))
 
@@ -38,7 +38,7 @@ test("importing again replaces the earlier import", async () => {
     const overlay = await server.overlay()
     assert.deepEqual(overlay.problems.map(problem => problem.id), ["p2"])
     assert.equal(overlay.coursePlans.length, 1)
-    assert.equal((await fetch(`${server.base}/static/images/figures/oatutor/p1/graph.png`)).status, 404)
+    assert.equal((await fetch(`${server.base}/static/images/figures/oatutor/p1/graph.png`, { headers: server.student })).status, 404)
 })
 
 test("a Finder zip of the folder is accepted", async () => {
@@ -51,13 +51,14 @@ test("a Finder zip of the folder is accepted", async () => {
 })
 
 test("the overlay revalidates with its ETag", async () => {
-    const first = await fetch(`${server.base}/api/content/overlay`)
+    const first = await fetch(`${server.base}/api/content/overlay`, { headers: server.student })
     const etag = first.headers.get("etag")
-    assert.equal((await fetch(`${server.base}/api/content/overlay`, { headers: { "If-None-Match": etag } })).status, 304)
+    const cached = { ...server.student, "If-None-Match": etag }
+    assert.equal((await fetch(`${server.base}/api/content/overlay`, { headers: cached })).status, 304)
 
     await server.upload(await zipOf(contentSource()))
 
-    const after = await fetch(`${server.base}/api/content/overlay`, { headers: { "If-None-Match": etag } })
+    const after = await fetch(`${server.base}/api/content/overlay`, { headers: cached })
     assert.equal(after.status, 200)
     assert.notEqual(after.headers.get("etag"), etag)
 })
@@ -155,7 +156,7 @@ test("a source can be listed and deleted", async () => {
     assert.equal((await server.remove("algebra_k1")).status, 204)
     assert.equal((await server.remove("algebra_k1")).status, 404)
     assert.deepEqual((await server.overlay()).problems, [])
-    assert.equal((await fetch(`${server.base}/static/images/figures/oatutor/p1/graph.png`)).status, 404)
+    assert.equal((await fetch(`${server.base}/static/images/figures/oatutor/p1/graph.png`, { headers: server.student })).status, 404)
 })
 
 test("a source without a manifest is known by its lesson", async () => {
