@@ -10,16 +10,28 @@ COPY common ./common
 RUN npm ci
 COPY . .
 ARG COMMIT_HASH=""
+# "off" ships imported courses only; anything else keeps the built-in ones beside them.
+ARG BUILTIN_CONTENT=off
+# Where the AI chat's agent service answers, e.g. /agent. Empty, lessons show no chat.
+ARG AI_AGENT_URL=""
 # PUBLIC_URL overrides package.json's GitHub Pages homepage, which would prefix every asset with /OATutor.
 ENV CI=false \
     PUBLIC_URL=/ \
     GENERATE_SOURCEMAP=false \
     REACT_APP_BUILD_TYPE=production \
     REACT_APP_COMMIT_HASH=$COMMIT_HASH \
+    REACT_APP_BUILTIN_CONTENT=$BUILTIN_CONTENT \
+    REACT_APP_AI_AGENT_URL=$AI_AGENT_URL \
     NODE_OPTIONS=--max-old-space-size=4096
 RUN npm run build
 # Ids the built-in content already uses, so imports can be checked against them.
-RUN node server/scripts/writeBuiltinIndex.js generated/builtin-index.json
+# With it off there is nothing to clash with, and its pool and figures need not ship.
+RUN if [ "$BUILTIN_CONTENT" = "off" ]; then \
+        rm -rf build/content-pool build/static/images/figures/oatutor \
+        && mkdir -p generated && echo '{}' > generated/builtin-index.json; \
+    else \
+        node server/scripts/writeBuiltinIndex.js generated/builtin-index.json; \
+    fi
 
 FROM node:20-bookworm-slim AS server-deps
 WORKDIR /srv/server

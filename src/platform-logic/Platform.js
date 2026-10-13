@@ -29,6 +29,7 @@ import { toast } from "react-toastify";
 import ToastID from "../util/toastIds";
 import { getStudentDisplayName } from "../util/getStudentDisplayName";
 import BrandLogoNav from "@components/BrandLogoNav";
+import SessionLinks from "@components/SessionLinks";
 import { cleanArray } from "../util/cleanObject";
 import ErrorBoundary from "@components/ErrorBoundary";
 import withTranslation from "../util/withTranslation";
@@ -374,6 +375,7 @@ class Platform extends React.Component {
     }
 
     this.lesson = lesson;
+    context.firebase.lessonId = lesson.id;
     const resolvedLessonLanguage = this._resolveLessonLanguage(lesson);
     this.props.enterCourse?.(lesson?.courseName, resolvedLessonLanguage || null);
 
@@ -1272,6 +1274,7 @@ class Platform extends React.Component {
                       </IconButton>
                     )}
                     <img src={userIcon} alt="User Icon" style={{ width: 28, height: 28, marginLeft: 4 }} />
+                    <SessionLinks />
                   </div>
                   <Popup isOpen={showPopup} onClose={this.togglePopup}>
                     <About />
@@ -1295,6 +1298,7 @@ class Platform extends React.Component {
                     >
                       <img src={userIcon} alt="User Icon" />
                       <div style={{ fontWeight: 600 }}>{this.studentNameDisplay}</div>
+                      <SessionLinks />
                     </div>
                   </Grid>
                 </Grid>

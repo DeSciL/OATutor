@@ -29,6 +29,7 @@ import parseJwt from "./util/parseJWT";
 import AssignmentNotLinked from "./pages/AssignmentNotLinked";
 import AssignmentAlreadyLinked from "./pages/AssignmentAlreadyLinked";
 import SessionExpired from "./pages/SessionExpired";
+import ImportContent from "./pages/ImportContent";
 import { Posts } from "./pages/Posts/Posts";
 import loadFirebaseEnvConfig from "./util/loadFirebaseEnvConfig";
 import generateRandomInt from "./util/generateRandomInt";
@@ -45,14 +46,15 @@ import { skillModel, defaultBKTParams, experimentalBKTParams } from "./content/c
 import { heuristic as defaultHeuristic } from "./models/BKT/problem-select-heuristics/defaultHeuristic.js";
 import { heuristic as experimentalHeuristic } from "./models/BKT/problem-select-heuristics/experimentalHeuristic.js";
 import BrowserStorage from "./util/browserStorage";
+import { currentUser } from "./auth/session";
 import tableOfContents from "@components/tableOfContents";
 // ### END CUSTOMIZABLE IMPORTS ###
 
 loadFirebaseEnvConfig(config);
 
+// No "token" or "lis_person_name_full": the LTI token is never verified here, and
+// this site knows its users from their sign-in (src/auth/session.js).
 const queryParamToContext = {
-    token: "jwt",
-    lis_person_name_full: "studentName",
     to: "alreadyLinkedLesson",
     use_expanded_view: "use_expanded_view",
     do_not_restore: "noRestore",
@@ -80,8 +82,9 @@ if (!AB_TEST_MODE) {
 class App extends React.Component {
     constructor(props) {
         super(props);
-        // UserID creation/loading
-        let userId = localStorage.getItem(USER_ID_STORAGE_KEY);
+        // UserID creation/loading. Signed-in users are known by their subject;
+        // the random id is only for `npm start` without the server.
+        let userId = currentUser()?.sub || localStorage.getItem(USER_ID_STORAGE_KEY);
         if (!userId) {
             userId = generateRandomInt().toString();
             localStorage.setItem(USER_ID_STORAGE_KEY, userId);
@@ -190,7 +193,8 @@ class App extends React.Component {
     }
 
     getTreatment = () => {
-        return this.userID % 2;
+        // A subject is not a number; those users are all in treatment 0.
+        return Number(this.userID) % 2 || 0;
     };
 
     getTreatmentObject = (targetObject) => {
@@ -283,7 +287,7 @@ class App extends React.Component {
                         skillModel,
                         credentials: config,
                         debug: false,
-                        studentName: "",
+                        studentName: currentUser()?.name || "",
                         alreadyLinkedLesson: "",
                         jwt: "",
                         user: {},
@@ -411,6 +415,16 @@ class App extends React.Component {
                                         path="/assignment-already-linked"
                                         render={(props) => (
                                             <AssignmentAlreadyLinked
+                                                key={Date.now()}
+                                                {...props}
+                                            />
+                                        )}
+                                    />
+                                    <Route
+                                        exact
+                                        path="/import"
+                                        render={(props) => (
+                                            <ImportContent
                                                 key={Date.now()}
                                                 {...props}
                                             />

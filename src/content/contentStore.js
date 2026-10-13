@@ -10,10 +10,13 @@ import builtinExperimentalBKTParams from "../content-sources/oatutor/bkt-params/
 // does both before loading anything that reads them, so importing the JSON
 // directly elsewhere would miss the problems and the imported courses.
 
-export const coursePlans = builtinCoursePlans;
-export const skillModel = builtinSkillModel;
-export const defaultBKTParams = builtinDefaultBKTParams;
-export const experimentalBKTParams = builtinExperimentalBKTParams;
+// Built with REACT_APP_BUILTIN_CONTENT=off, the site shows imported courses only.
+const BUILTIN = process.env.REACT_APP_BUILTIN_CONTENT !== "off";
+
+export const coursePlans = BUILTIN ? builtinCoursePlans : [];
+export const skillModel = BUILTIN ? builtinSkillModel : {};
+export const defaultBKTParams = BUILTIN ? builtinDefaultBKTParams : {};
+export const experimentalBKTParams = BUILTIN ? builtinExperimentalBKTParams : {};
 export const problemPool = [];
 
 let applied = false;
@@ -51,7 +54,7 @@ async function fetchJson(path, { timeoutMs } = {}) {
 let poolLoaded = false;
 
 export async function loadProblemPool() {
-    if (poolLoaded) return;
+    if (poolLoaded || !BUILTIN) return;
     const problems = await fetchJson(`/content-pool/${CONTENT_SOURCE}.json`);
     poolLoaded = true;
     problemPool.unshift(...problems);

@@ -69,3 +69,22 @@ test("applying twice adds nothing twice", () => {
         expect(store.coursePlans.length).toBe(courses + 1);
     });
 });
+
+test("with built-in content off, only imported courses exist", async () => {
+    process.env.REACT_APP_BUILTIN_CONTENT = "off";
+    global.fetch = jest.fn();
+    let store;
+    isolated(() => {
+        store = require("./contentStore");
+    });
+    delete process.env.REACT_APP_BUILTIN_CONTENT;
+
+    await store.loadProblemPool();
+    store.applyOverlay(overlay());
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(store.coursePlans.map(course => course.courseName)).toEqual(["Imported course"]);
+    expect(store.problemPool.map(problem => problem.id)).toEqual(["imported1"]);
+    // Nothing built-in is left to win over the imported parameters.
+    expect(store.defaultBKTParams[builtinSkill].probMastery).toBe(0.99);
+});

@@ -2,6 +2,7 @@ import {
     CURRENT_SEMESTER,
     DO_LOG_DATA,
     DO_LOG_MOUSE_DATA,
+    ENABLE_EVENT_LOG,
     ENABLE_FIREBASE,
     GRANULARITY,
     MAX_BUFFER_SIZE,
@@ -67,6 +68,14 @@ function sanitizeForFirestore(value) {
 
 class Firebase {
     constructor(oats_user_id, credentials, treatment, siteVersion, ltiContext) {
+        this.oats_user_id = oats_user_id;
+        this.treatment = treatment;
+        this.siteVersion = siteVersion;
+        this.mouseLogBuffer = [];
+        this.ltiContext = ltiContext;
+        // Set by Platform when a lesson opens, so every event says which lesson it is from.
+        this.lessonId = null;
+
         if (!ENABLE_FIREBASE) {
             console.debug("Not using firebase for logging");
             return;
@@ -79,13 +88,22 @@ class Firebase {
             );
         }
         const app = getApps().length ? getApp() : initializeApp(credentials);
-
-        this.oats_user_id = oats_user_id;
         this.db = getFirestore(app);
-        this.treatment = treatment;
-        this.siteVersion = siteVersion;
-        this.mouseLogBuffer = [];
-        this.ltiContext = ltiContext;
+    }
+
+    /** Posts one event to this site's own server, which stores it under the signed-in user. */
+    sendEvent(collection, data) {
+        // Without the server-side timestamp marker, which only Firestore understands.
+        const payload = this.addMetaData(data, true);
+        return fetch(`${process.env.PUBLIC_URL}/api/events`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            // Lets the last answer before a tab closes still arrive.
+            keepalive: true,
+            body: JSON.stringify({ ...payload, collection, lessonId: this.lessonId }),
+        }).catch((err) => {
+            console.debug("event not stored", err);
+        });
     }
 
     getCollectionName(targetCollection) {
@@ -118,6 +136,7 @@ class Firebase {
         doPartitioning = false,
         partitionFn = daysSinceEpoch
     ) {
+        if (ENABLE_EVENT_LOG) return this.sendEvent(_collection, data);
         if (!ENABLE_FIREBASE) return;
         const collection = this.getCollectionName(_collection);
         const payload = this.addMetaData(data, true);
@@ -151,6 +170,7 @@ class Firebase {
       Data: Value - JSON object of data you want to store
     */
     async writeData(_collection, data) {
+        if (ENABLE_EVENT_LOG) return this.sendEvent(_collection, data);
         if (!ENABLE_FIREBASE) return;
         if (!this.db) {
             console.warn(

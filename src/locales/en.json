@@ -27,7 +27,9 @@
     {
         "Mastery": "Lesson Mastery: ",
         "NotLoggedIn": "Not logged in",
-        "LoggedIn": "Logged in"
+        "LoggedIn": "Logged in",
+        "SignOut": "Sign out",
+        "ImportContent": "Import"
     },
     "hintsystem": 
     {

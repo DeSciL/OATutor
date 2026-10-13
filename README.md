@@ -93,6 +93,48 @@ npx serve -s build
 > The build folder now contains all of the static assets necessary to make a complete deployment on
 > a static site hosting provider.
 
+### Self-hosting with imports
+
+This fork can also run as one container: `server/` serves the build and takes content sources
+exported from TutorCreator at runtime, either dropped onto the page at `#/import` or published
+by TutorCreator itself. `Dockerfile` builds it; by default the image shows imported courses only
+(`--build-arg BUILTIN_CONTENT=on` keeps the built-in ones).
+
+Out of the box nobody signs in and every lesson is open to every visitor. All it needs:
+
+| Variable | Meaning |
+|---|---|
+| `IMPORT_TOKEN` | Whoever has it may import and remove content: typed on the import page, or sent by TutorCreator |
+| `DATA_DIR` | Imported content (default `/data`); without a volume there, imports are lost on restart |
+| `PUBLIC_BASE_URL` | Where browsers reach the site, used in the lesson links an import returns |
+| `DATABASE_URL` | Optional: Postgres that stores what students do, under a random id per browser |
+
+Sign-in through Keycloak (or any OpenID Connect provider) is built in and switched on with
+`AUTH_MODE=oidc`:
+
+| Variable | Meaning |
+|---|---|
+| `AUTH_MODE` | `off` (default), `oidc`, or `dev`, which signs every visitor in as an admin and refuses https |
+| `SESSION_SECRET` | Signs the session cookie (`openssl rand -hex 32`) |
+| `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | The realm and this site's client in it; the redirect URI is `<PUBLIC_BASE_URL>/api/auth/callback` |
+| `OIDC_ROLES_CLIENT` | The client whose roles make someone a teacher or admin (default `tutor-creator-client`) |
+
+Then lessons need a signed-in user, `DATABASE_URL` is required and activity is stored per user.
+Everyone the realm signs in is a student; whoever holds the `teacher` or `admin` role on
+`OIDC_ROLES_CLIENT` imports at `#/import` without the token, and only admins remove a source there.
+
+For local work, from `server/`:
+
+```sh
+IMPORT_TOKEN=local npm start
+```
+
+`docker compose up db` adds a Postgres at `postgresql://oatutor:oatutor@localhost:5433/oatutor`
+for `DATABASE_URL`.
+
+`npm test` in `server/` covers sign-in, imports and events; set `TEST_DATABASE_URL` to the same
+address to include the test that writes to Postgres.
+
 ### \[Optional\] Firebase Setup
 
 OATutor can use Firebase to persistently store log data.
