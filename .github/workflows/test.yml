@@ -24,7 +24,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -69,7 +69,7 @@ jobs:
       - name: Start
         run: docker run -d --name oatutor -p 8080:8080 -e IMPORT_TOKEN=ci oatutor:ci
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
