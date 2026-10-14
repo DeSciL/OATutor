@@ -7,9 +7,8 @@ import ProblemWrapper from "@components/problem-layout/ProblemWrapper.js";
 import { ThemeContext } from '../config/config.js';
 import Box from "@material-ui/core/Box";
 import BrandLogoNav from "@components/BrandLogoNav";
-import { CONTENT_SOURCE } from "@common/global-config";
 
-let problemPool = require(`@generated/processed-content-pool/${CONTENT_SOURCE}.json`)
+import { problemPool } from "../content/contentStore";
 
 let seed = Date.now().toString();
 console.log("Generated seed");

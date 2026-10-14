@@ -1,5 +1,5 @@
 import React from "react";
-import courses from "../content-sources/oatutor/coursePlans.json";
+import { coursePlans as courses } from "../content/contentStore";
 import { calculateSemester } from "../util/calculateSemester.js";
 
 import { SITE_NAME } from "@common/global-config";
@@ -40,7 +40,21 @@ const SHOW_COPYRIGHT = false;
  * feedback, user interactions, and site logs.
  * @type {boolean}
  */
-const ENABLE_FIREBASE = true;
+const ENABLE_FIREBASE = false;
+
+/**
+ * Send the same events to this site's own server instead (POST /api/events), which stores them in Postgres under
+ * the signed-in user. Takes the place of Firebase; DO_LOG_DATA still decides whether interactions are logged.
+ * @type {boolean}
+ */
+const ENABLE_EVENT_LOG = true;
+
+/**
+ * The AI chat needs an agent service behind it (REACT_APP_AI_AGENT_URL at build time). Without one, a lesson that
+ * asks for the chat would show a window that cannot answer.
+ * @type {boolean}
+ */
+const AI_AGENT_AVAILABLE = Boolean(process.env.REACT_APP_AI_AGENT_URL);
 
 /**
  * If ENABLE_FIREBASE, indicates whether the site should use Firebase to store, process, and analyze general user
@@ -121,9 +135,10 @@ const getNormalizedMastery = (mastery, lesson) => {
 };
 // Synthetic Office Hours lesson: per-course via coursePlans `office_hours: true`.
 // Authored lessons with chat_display_mode "Full" are independent of that field.
+// It is a chat and nothing else, so without an agent it is left out.
 const coursePlans = courses.map((course) => {
     const lessons = [...(course.lessons || [])];
-    if (courseHasOfficeHours(course)) {
+    if (AI_AGENT_AVAILABLE && courseHasOfficeHours(course)) {
         lessons.push(buildOfficeHoursLesson(course));
     }
     return { ...course, lessons };
@@ -141,6 +156,9 @@ for (let i = 0; i < coursePlans.length; i++) {
             lesson.learningObjectives
         );
         lesson.language = lessonLanguage;
+        if (!AI_AGENT_AVAILABLE) {
+            lesson.chat_display_mode = "Off";
+        }
 
         lessonPlans.push({
             ...lesson,
@@ -168,6 +186,7 @@ export {
     ThemeContext,
     SITE_VERSION,
     ENABLE_FIREBASE,
+    ENABLE_EVENT_LOG,
     DO_LOG_DATA,
     DO_LOG_MOUSE_DATA,
     AB_TEST_MODE,

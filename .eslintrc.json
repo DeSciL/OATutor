@@ -1,6 +1,22 @@
 {
   "root": true,
   "extends": "react-app",
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": [
+              "**/content-sources/**",
+              "@generated/processed-content-pool/*"
+            ],
+            "message": "Import content from src/content/contentStore, or courses imported at runtime will be missing."
+          }
+        ]
+      }
+    ]
+  },
   "overrides": [
     {
       "files": [
@@ -42,6 +58,15 @@
       ],
       "rules": {
         "no-unreachable": "off"
+      }
+    },
+    {
+      "files": [
+        "src/content/contentStore.js",
+        "src/content/*.test.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
       }
     }
   ]

@@ -1,7 +1,16 @@
 import localforage from "localforage";
 import { PROGRESS_STORAGE_KEY } from "../config/config.js";
 
+import { currentUser } from "../auth/session";
+
 const CANVAS_PROGRESS_KEY_MARKER = "::canvas::";
+const USER_PROGRESS_KEY_MARKER = "::user::";
+
+// Students share computers, so progress in this browser belongs to whoever is signed in.
+const ownerSuffix = () => {
+    const owner = currentUser()?.sub;
+    return owner ? `${USER_PROGRESS_KEY_MARKER}${encodeURIComponent(owner)}` : "";
+};
 
 class BrowserStorage {
     /**
@@ -26,8 +35,12 @@ class BrowserStorage {
     }
 
     getStorageKey = (key) => {
-        if (typeof key !== "string" || !key.startsWith(PROGRESS_STORAGE_KEY) || key.includes(CANVAS_PROGRESS_KEY_MARKER)) {
+        const owned = [CANVAS_PROGRESS_KEY_MARKER, USER_PROGRESS_KEY_MARKER].some((marker) => String(key).includes(marker));
+        if (typeof key !== "string" || !key.startsWith(PROGRESS_STORAGE_KEY) || owned) {
             return key;
+        }
+        if (ownerSuffix()) {
+            return `${key}${ownerSuffix()}`;
         }
 
         const user = this._app.state.additionalContext.user || {};
@@ -40,7 +53,12 @@ class BrowserStorage {
     }
 
     removeByKey = async key => localforage.removeItem(this.getStorageKey(key))
-    getKeys = async () =>  !this.noRestore() && localforage.keys()
+    getKeys = async () => {
+        if (this.noRestore()) return false;
+        const keys = await localforage.keys();
+        // Resetting progress removes every key listed here, so list only this user's.
+        return ownerSuffix() ? keys.filter((key) => key.endsWith(ownerSuffix())) : keys;
+    }
     getByKey = async key => !this.noRestore() && localforage.getItem(this.getStorageKey(key))
     /**
      *

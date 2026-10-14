@@ -30,9 +30,9 @@ import { toast } from "react-toastify";
 import ToastID from "../util/toastIds";
 import { getStudentDisplayName } from "../util/getStudentDisplayName";
 import BrandLogoNav from "@components/BrandLogoNav";
+import SessionLinks from "@components/SessionLinks";
 import { cleanArray } from "../util/cleanObject";
 import ErrorBoundary from "@components/ErrorBoundary";
-import { CONTENT_SOURCE } from "@common/global-config";
 import withTranslation from "../util/withTranslation";
 
 import { LocalizationConsumer } from "../util/LocalizationContext.js";
@@ -67,7 +67,7 @@ import { ProgressTooltip, InfoTooltip } from "@components/Tooltip";
 import { isMobileWidth } from "../util/responsive";
 import { isFullChatLesson } from "../util/officeHours.js";
 
-let problemPool = require(`@generated/processed-content-pool/${CONTENT_SOURCE}.json`);
+import { problemPool } from "../content/contentStore";
 
 let seed = Date.now().toString();
 console.log("Generated seed");
@@ -381,6 +381,7 @@ class Platform extends React.Component {
     }
 
     this.lesson = lesson;
+    context.firebase.lessonId = lesson.id;
     const resolvedLessonLanguage = this._resolveLessonLanguage(lesson);
     this.props.enterCourse?.(lesson?.courseName, resolvedLessonLanguage || null);
 
@@ -1303,6 +1304,7 @@ class Platform extends React.Component {
                       </IconButton>
                     )}
                     <img src={userIcon} alt="User Icon" style={{ width: 28, height: 28, marginLeft: 4 }} />
+                    <SessionLinks />
                   </div>
                   <Popup isOpen={showPopup} onClose={this.togglePopup}>
                     <About />
@@ -1326,6 +1328,7 @@ class Platform extends React.Component {
                     >
                       <img src={userIcon} alt="User Icon" />
                       <div style={{ fontWeight: 600 }}>{this.studentNameDisplay}</div>
+                      <SessionLinks />
                     </div>
                   </Grid>
                 </Grid>

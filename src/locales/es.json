@@ -27,7 +27,9 @@
     {
         "Mastery": "Maestría de Lección: ",
         "NotLoggedIn": "Sin iniciar sesión",
-        "LoggedIn": "Iniciar sesión"
+        "LoggedIn": "Iniciar sesión",
+        "SignOut": "Cerrar sesión",
+        "ImportContent": "Importar"
     },
     "hintsystem": 
     {

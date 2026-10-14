@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/.DS_Store
+build
+generated
+public/static/images/figures/oatutor
+public/content-pool
+aws
+old-lti-middleware
+logs
+.env
+.env.*

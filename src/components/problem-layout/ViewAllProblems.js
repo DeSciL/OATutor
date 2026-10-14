@@ -24,8 +24,8 @@ import Popup from '@components/Popup/Popup';
 import About from '../../pages/Posts/About';
 import ProblemWrapper from '@components/problem-layout/ProblemWrapper';
 import { findLessonById, ThemeContext, SHOW_COPYRIGHT, SITE_NAME } from '../../config/config.js';
+import { problemPool } from '../../content/contentStore';
 import { getStudentDisplayName } from '../../util/getStudentDisplayName';
-import { CONTENT_SOURCE } from '@common/global-config';
 import withTranslation from '../../util/withTranslation.js';
 
 import userIcon from "../../assets/UserThumb.svg";
@@ -105,7 +105,6 @@ const ViewAllProblems = ({ translate, history }) => {
   const context = useContext(ThemeContext);
 
   const [lesson, setLesson] = useState(null);
-  const [problemPool, setProblemPool] = useState([]);
   const [filteredProblems, setFilteredProblems] = useState([]);
   const [visibleProblems, setVisibleProblems] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
@@ -116,13 +115,6 @@ const ViewAllProblems = ({ translate, history }) => {
   // no-op handlers for ProblemWrapper
   const displayMastery = () => {};
   const problemComplete = () => {};
-
-  // Load pool
-  useEffect(() => {
-    import(`@generated/processed-content-pool/${CONTENT_SOURCE}.json`)
-      .then(m => setProblemPool(m.default || []))
-      .catch(console.error);
-  }, []);
 
   // Find lesson
   useEffect(() => {
@@ -141,7 +133,7 @@ const ViewAllProblems = ({ translate, history }) => {
 
         return numberA === numberB ? 0 : numberA - numberB;
       });
-  }, [lesson, problemPool]);
+  }, [lesson]);
 
   useEffect(() => {
     setFilteredProblems(memoFiltered);

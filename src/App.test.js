@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom';
 import App from './App';
 import { getStudentDisplayName } from './util/getStudentDisplayName';
 
+// react-markdown ships only as ES modules, which CRA's Jest does not transform.
+// This test is about App rendering at all, so plain text is enough.
+jest.mock('react-markdown', () => ({ children }) => children);
+
 it('renders without crashing', () => {
   const div = document.createElement('div');
   ReactDOM.render(<App/>, div);
