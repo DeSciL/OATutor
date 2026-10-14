@@ -135,9 +135,10 @@ const getNormalizedMastery = (mastery, lesson) => {
 };
 // Synthetic Office Hours lesson: per-course via coursePlans `office_hours: true`.
 // Authored lessons with chat_display_mode "Full" are independent of that field.
+// It is a chat and nothing else, so without an agent it is left out.
 const coursePlans = courses.map((course) => {
     const lessons = [...(course.lessons || [])];
-    if (courseHasOfficeHours(course)) {
+    if (AI_AGENT_AVAILABLE && courseHasOfficeHours(course)) {
         lessons.push(buildOfficeHoursLesson(course));
     }
     return { ...course, lessons };

@@ -1,0 +1,97 @@
+name: Docker CI
+
+# Builds OATutor and pushes it to the DeSciL Harbor at registry.vlab.ethz.ch.
+# Deployed to oa.tutor.ethz.ch from the `tutor` namespace; the image lives in
+# the `li` Harbor project because a `tutor` project does not exist yet.
+#
+# This is upstream OATutor plus a small server that imports lessons from
+# TutorCreator at runtime, so the image serves on port 8080 and keeps the
+# imported lessons under /data (see "Self-hosting with imports" in README.md).
+#
+# Tag-triggered, following the DescilRenku pattern. Push one tag at a time:
+# upstream's tags come along when syncing, and each would start a build.
+
+on:
+  push:
+    tags:     # Pattern matched against refs/tags
+      - '*'   # Push events to every tag not containing /
+
+  workflow_dispatch:
+
+env:
+  HARBOR: ${{ secrets.HARBOR_REGISTRY_URL }}
+  HARBOR_PROJECT: li
+  IMAGE: oatutor
+  PROXY: http://proxy.ethz.ch:3128
+
+jobs:
+  build:
+    runs-on: descil-runners
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      # The build reads the content submodule (CAHLR/OATutor-Content), even
+      # though the image ships without the built-in lessons.
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+        env:
+          http_proxy: ${{ env.PROXY }}
+          https_proxy: ${{ env.PROXY }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          VERSION="${TAG_NAME#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Login to Harbor
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ secrets.HARBOR_REGISTRY_URL }}
+          username: ${{ secrets.HARBOR_REGISTRY_USER }}
+          password: ${{ secrets.HARBOR_REGISTRY_PASSWORD }}
+
+      - name: Build and push to Harbor
+        id: build-push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          provenance: false
+          # descil-runners are in-cluster and have NO direct internet. The
+          # build needs registry.npmjs.org and github.com (the
+          # equation-editor-react release tarball), so npm must go through the
+          # ETH proxy. BuildKit predeclares these names, so the Dockerfile does
+          # not need its own ARG lines for them.
+          build-args: |
+            http_proxy=${{ env.PROXY }}
+            https_proxy=${{ env.PROXY }}
+            HTTP_PROXY=${{ env.PROXY }}
+            HTTPS_PROXY=${{ env.PROXY }}
+            COMMIT_HASH=${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/DeSciL/OATutor
+            org.opencontainers.image.description=OATutor for oa.tutor.ethz.ch with imports from TutorCreator (no Firebase, no AWS)
+            org.opencontainers.image.licenses=MIT
+          tags: |
+            ${{ env.HARBOR }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE }}:${{ steps.version.outputs.tag }}
+            ${{ env.HARBOR }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE }}:latest
+
+      - name: Sign Harbor image
+        run: |
+          DIGEST="${{ steps.build-push.outputs.digest }}"
+          echo "Signing Harbor image: ${{ env.HARBOR }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE }}@${DIGEST}"
+          cosign sign --yes ${{ env.HARBOR }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE }}@${DIGEST}
+
+      - name: Verify Harbor signature
+        run: |
+          DIGEST="${{ steps.build-push.outputs.digest }}"
+          echo "Checking Harbor signature..."
+          cosign tree ${{ env.HARBOR }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE }}@${DIGEST}
