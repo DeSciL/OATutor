@@ -1,0 +1,87 @@
+name: Test
+
+# Runs the tests, builds the image and imports a lesson into it, on every pull
+# request and every push to main. Nothing is pushed to Harbor: that stays with
+# docker-ci.yml, on tags.
+#
+# GitHub's hosted runners, not descil-runners: a pull request runs code from
+# whoever opened it, which should not run inside the cluster. They also reach
+# the internet directly, so no proxy here.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+
+      # Gitignored upstream but imported by App.js; the Dockerfile writes the same stub.
+      - name: Stub the Firebase config
+        run: echo 'export default {};' > src/config/firebaseConfig.js
+
+      - name: App tests
+        run: |
+          npm ci
+          npm test
+        env:
+          CI: true
+
+      - name: Server tests
+        working-directory: server
+        run: |
+          npm ci
+          npm test
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: oatutor:ci
+          build-args: |
+            COMMIT_HASH=${{ github.sha }}
+
+      - name: Start
+        run: docker run -d --name oatutor -p 8080:8080 -e IMPORT_TOKEN=ci oatutor:ci
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Import a lesson into the running image
+        working-directory: server
+        run: |
+          npm ci
+          node scripts/smokeTest.js
+        env:
+          BASE_URL: http://127.0.0.1:8080
+          IMPORT_TOKEN: ci
+
+      - name: Server log
+        if: always()
+        run: docker logs oatutor
