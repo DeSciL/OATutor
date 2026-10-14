@@ -37,12 +37,12 @@ RUN if [ "$BUILTIN_CONTENT" = "off" ]; then \
         node server/scripts/writeBuiltinIndex.js generated/builtin-index.json; \
     fi
 
-FROM node:20-bookworm-slim AS server-deps
+FROM node:24-bookworm-slim AS server-deps
 WORKDIR /srv/server
 COPY server/package.json server/package-lock.json ./
 RUN npm ci --omit=dev
 
-FROM node:20-bookworm-slim
+FROM node:24-bookworm-slim
 ENV NODE_ENV=production \
     PORT=8080 \
     BUILD_DIR=/srv/build \
