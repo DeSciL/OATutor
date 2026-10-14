@@ -9,6 +9,9 @@ COPY package.json package-lock.json ./
 COPY common ./common
 RUN npm ci
 COPY . .
+# App.js imports this file, but upstream gitignores it, so a fresh checkout cannot build.
+# Always overwritten with an empty one, so a developer's real Firebase keys never ship.
+RUN echo 'export default {};' > src/config/firebaseConfig.js
 ARG COMMIT_HASH=""
 # "off" ships imported courses only; anything else keeps the built-in ones beside them.
 ARG BUILTIN_CONTENT=off
@@ -22,6 +25,7 @@ ENV CI=false \
     REACT_APP_COMMIT_HASH=$COMMIT_HASH \
     REACT_APP_BUILTIN_CONTENT=$BUILTIN_CONTENT \
     REACT_APP_AI_AGENT_URL=$AI_AGENT_URL \
+    REACT_APP_TTS_AWS_ENDPOINT= \
     NODE_OPTIONS=--max-old-space-size=4096
 RUN npm run build
 # Ids the built-in content already uses, so imports can be checked against them.
