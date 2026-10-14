@@ -2,7 +2,7 @@
 
 # Build the React app. The content submodule must be checked out: the problem
 # pool is generated from it during `npm run build` and bundled in.
-FROM node:20-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 # "@common/global-config" is a file: dependency, so it has to exist before install.
