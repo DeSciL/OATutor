@@ -112,6 +112,7 @@ async function checkProblems(contentPoolDir, lessonIds, { maxProblems }, issues)
     if (names.length > maxProblems) {
         throw new ImportError(413, `The source has ${names.length} problems; at most ${maxProblems} are accepted.`)
     }
+    const lessonOf = {}
     for (const name of names) {
         if (!ID.test(name)) {
             issues.push(`Problem folder "${name}" is not made of letters, digits, _ and -.`)
@@ -125,9 +126,32 @@ async function checkProblems(contentPoolDir, lessonIds, { maxProblems }, issues)
         } else if (!lessonIds.includes(problem.lessonId)) {
             // OATutor shows a problem without a lessonId in every lesson, built-in ones included.
             issues.push(`Problem ${name} does not belong to a lesson of this source (lessonId "${problem.lessonId}").`)
+        } else {
+            lessonOf[name] = problem.lessonId
         }
     }
-    return names
+    return { problemIds: names, lessonOf }
+}
+
+/** A problemOrder naming a problem the lesson does not serve would end the lesson there. */
+function checkProblemOrder(coursePlans, lessonOf, issues) {
+    const lessons = coursePlans.flatMap(course => (Array.isArray(course?.lessons) ? course.lessons : []))
+    for (const lesson of lessons) {
+        const order = lesson?.problemOrder
+        if (order === undefined) continue
+        if (!Array.isArray(order) || order.length === 0) {
+            issues.push(`Lesson ${lesson.id} has a problemOrder that is not a list of problem ids.`)
+            continue
+        }
+        if (new Set(order).size !== order.length) {
+            issues.push(`Lesson ${lesson.id} lists a problem twice in its problemOrder.`)
+        }
+        for (const id of order) {
+            if (lessonOf[id] !== lesson.id) {
+                issues.push(`Lesson ${lesson.id} orders problem ${id}, which is not one of its problems.`)
+            }
+        }
+    }
 }
 
 /**
@@ -142,7 +166,8 @@ async function readSource(root, limits) {
     const lessonIds = checkCoursePlans(coursePlans, issues)
     const manifest = await readJson(path.join(root, "manifest.json"), "manifest.json")
     const sourceKey = sourceKeyFrom(manifest, lessonIds, issues, warnings)
-    const problemIds = await checkProblems(path.join(root, "content-pool"), lessonIds, limits, issues)
+    const { problemIds, lessonOf } = await checkProblems(path.join(root, "content-pool"), lessonIds, limits, issues)
+    checkProblemOrder(coursePlans, lessonOf, issues)
 
     const skillModel = (await readJson(path.join(root, "skillModel.json"), "skillModel.json")) ?? {}
     if (!isObject(skillModel) || !Object.values(skillModel).every(Array.isArray)) {

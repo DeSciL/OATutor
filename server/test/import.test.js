@@ -110,6 +110,25 @@ test("a problem outside the source's lessons is refused", async () => {
     assert.match(body.issues[0], /does not belong to a lesson/)
 })
 
+test("a lesson's problem order reaches the overlay", async () => {
+    const files = contentSource({ problems: ["p1", "p2"], problemOrder: ["p2", "p1"] })
+
+    const { status } = await server.upload(await zipOf(files))
+
+    assert.equal(status, 201)
+    const overlay = await server.overlay()
+    assert.deepEqual(overlay.coursePlans[0].lessons[0].problemOrder, ["p2", "p1"])
+})
+
+test("a problem order naming a problem outside the lesson is refused", async () => {
+    const files = contentSource({ problems: ["p1"], problemOrder: ["p1", "p9"] })
+
+    const { status, body } = await server.upload(await zipOf(files))
+
+    assert.equal(status, 422)
+    assert.match(body.issues[0], /orders problem p9/)
+})
+
 test("a path escaping the upload is refused", async () => {
     const files = contentSource()
     // Three levels up from <dataDir>/tmp/import-*/unpacked is the data directory itself,

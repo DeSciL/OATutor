@@ -45,10 +45,12 @@ function contentSource({
     skills = ["algebra_k1"],
     figure = false,
     lessonId = `${key}-lesson`,
+    problemOrder,
 } = {}) {
     const json = value => JSON.stringify(value, null, 4)
+    const lesson = { id: lessonId, name: courseName, learningObjectives: {}, problemOrder }
     const files = {
-        "coursePlans.json": json([{ courseName, lessons: [{ id: lessonId, name: courseName, learningObjectives: {} }] }]),
+        "coursePlans.json": json([{ courseName, lessons: [lesson] }]),
         "skillModel.json": json(Object.fromEntries(problems.map(id => [`${id}a`, skills]))),
         "bkt-params/defaultBKTParams.json": json(
             Object.fromEntries(skills.map(skill => [skill, { probMastery: 0.2, probTransit: 0.1, probSlip: 0.1, probGuess: 0.1 }]))

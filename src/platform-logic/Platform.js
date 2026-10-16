@@ -686,7 +686,14 @@ class Platform extends React.Component {
       }
     }
 
-    chosenProblem = context.heuristic(problems, this.completedProbs);
+    // A lesson with a problemOrder is served in that order; BKT only reports mastery.
+    const sequence = this.lesson.problemOrder;
+    if (sequence) {
+      const nextId = sequence.find((id) => !this.completedProbs.has(id));
+      chosenProblem = problems.find(({ id }) => id === nextId);
+    } else {
+      chosenProblem = context.heuristic(problems, this.completedProbs);
+    }
 
     const objectives = Object.keys(this.lesson.learningObjectives);
     let score = objectives.reduce((x, y) => {
@@ -695,12 +702,12 @@ class Platform extends React.Component {
     score = getNormalizedMastery(score / objectives.length, this.lesson);
     this.displayMastery(score);
 
-    const allMastered = score >= 1;
+    const finished = sequence ? chosenProblem == null : score >= 1;
     if (this.lesson?.isPartOfMetaLesson) {
-      console.log("[NextProblem TEST] allMastered:", allMastered, "| chosenProblem:", chosenProblem, "| isPartOfMetaLesson:", this.lesson?.isPartOfMetaLesson, "| hasMetaLesson:", !!this.metaLesson);
+      console.log("[NextProblem TEST] finished:", finished, "| chosenProblem:", chosenProblem, "| isPartOfMetaLesson:", this.lesson?.isPartOfMetaLesson, "| hasMetaLesson:", !!this.metaLesson);
     }
 
-    if (allMastered) {
+    if (finished) {
       if (this.lesson?.isPartOfMetaLesson && this.metaLesson) {
         console.log("[NextProblem TEST] EXIT: meta-lesson guard, no status set");
         return null;
@@ -780,7 +787,7 @@ class Platform extends React.Component {
 
   displayMastery = (mastery) => {
     this.setState({ mastery: mastery });
-    if (!this.lesson?.enableCompletionMode && mastery >= 1) {
+    if (!this.lesson?.enableCompletionMode && !this.lesson?.problemOrder && mastery >= 1) {
       if (this.lesson?.isPartOfMetaLesson && this.metaLesson) {
         return;
       }
@@ -942,6 +949,13 @@ class Platform extends React.Component {
 
   getProgressBarData = () => {
     if (!this.lesson) return { completed: 0, total: 0, percent: 0 };
+
+    const sequence = this.lesson.problemOrder;
+    if (sequence) {
+      const completed = sequence.filter((id) => this.completedProbs.has(id)).length;
+      const percent = sequence.length > 0 ? Math.round((completed / sequence.length) * 100) : 0;
+      return { completed, total: sequence.length, percent };
+    }
 
     const problems = this.problemIndex.problems.filter(
       ({ lesson }) => String(lesson).includes(this.lesson.topics)
